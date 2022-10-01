@@ -8,23 +8,26 @@ interface IToken {
     function burn(uint256 amount) external returns (bool);
 }
 
-contract TaxReceiver {
+contract AutoCTaxReceiver {
 
     // Token
     address public immutable token;
 
-    // Recipients Of Fees
-    address public ops;
+
+    // Receiver Adresses
+    address public treasuryAddress;
+    address public devAddress;
+
+    // Allocation Percentage
+    uint256 public treasuryPercentage;
+    uint256 public devPercentage;
 
     /**
         Minimum Amount Of Tokens In Contract To Trigger `trigger` Unless `approved`
-            If Set To A Very High Number, Only Approved May Call Trigger Function
-            If Set To A Very Low Number, Anybody May Call At Their Leasure
+        If Set To A Very High Number, Only Approved May Call Trigger Function
+        If Set To A Very Low Number, Anybody May Call At Their Leasure
      */
     uint256 public minimumTokensRequiredToTrigger;
-
-    // Allocation Percentage
-    uint256 public opsPercentage;
 
     // Address => Can Call Trigger
     mapping ( address => bool ) public approved;
@@ -40,22 +43,22 @@ contract TaxReceiver {
         _;
     }
 
-    constructor(address token_, address ops_) {
+    constructor(address token_, address treasuryAddress_, address devAddress_) {
         require(
             token_ != address(0) &&
-            ops_ != address(0),
+            treasuryAddress != address(0) &&
+            devAddress_ != address(0),
             'Zero Address'
         );
 
-        // Initialize Addresses
         token = token_;
-        ops = ops_;
+        treasuryAddress = treasuryAddress_;
+        devAddress = devAddress_;
 
-        // set initial approved
         approved[msg.sender] = true;
 
-        // ops percentage
-        opsPercentage = 75;
+        treasuryPercentage = 30;
+        devPercentage = 10;
     }
 
     function trigger() external {
@@ -68,26 +71,39 @@ contract TaxReceiver {
         }
 
         if (balance > 0) {
-            // fraction out tokens received
-            uint part1 = balance * opsPercentage / 100;
-            uint part2 = balance - part1;
+            uint treasuryBalance = balance * treasuryPercentage / 100;
+            uint devBalance = balance * devPercentage / 100;
+            uint burn = balance - treasuryBalance - devBalance;
 
             // send to destinations
-            if (part1 > 0) {
-                IERC20(token).transfer(ops, part1);
+            if (treasuryBalance > 0) {
+                IERC20(token).transfer(treasuryAddress, treasuryBalance);
             }
-            if (part2 > 0) {
-                IToken(token).burn(part2);
+            if (devBalance > 0) {
+                IERC20(token).transfer(devAddress, devBalance);
+            }
+            if (burn > 0) {
+                IToken(token).burn(burn);
             }
         }
     }
 
-    function setOps(address opsAddr) external onlyOwner {
-        require(opsAddr != address(0));
-        ops = opsAddr;
+    function setTreasuryAddress(address treasuryAddress_) external onlyOwner {
+        require(treasuryAddress_ != address(0));
+        treasuryAddress = treasuryAddress_;
     }
-    function setOpsPercentage(uint256 newPercent) external onlyOwner {
-        opsPercentage = newPercent;
+    function setTreasuryPercentage(uint256 newTreasuryPercentage_) external onlyOwner {
+        require((devPercentage + newTreasuryPercentage_) <= 100);
+        treasuryPercentage = newTreasuryPercentage_;
+    }
+
+    function setDevAddress(address devAddress_) external onlyOwner {
+        require(devAddress_ != address(0));
+        devAddress = devAddress_;
+    }
+    function setDevPercentage(uint256 newDevPercentage_) external onlyOwner {
+        require((treasuryPercentage + newDevPercentage_) <= 100);
+        devPercentage = newDevPercentage_;
     }
 
     function setApproved(address caller, bool isApproved) external onlyOwner {
