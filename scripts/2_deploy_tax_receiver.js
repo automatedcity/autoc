@@ -1,4 +1,4 @@
-const { tokenAddress, devAddress } = require('../.secrets.json');
+const { tokenAddress, treasuryAddress, devAddress } = require('../.secrets.json');
 
 async function main() {
   const [deployer] = await ethers.getSigners();
@@ -8,9 +8,10 @@ async function main() {
     deployer.address
   );
   console.log("Account balance:", (await deployer.getBalance()).toString());
-  const Token = await ethers.getContractFactory("TaxReceiver");
+  const Token = await ethers.getContractFactory("AutoCTaxReceiver");
   const token = await Token.deploy(
     tokenAddress,
+    treasuryAddress,
     devAddress
   );
   console.log("Token address:", token.address);
