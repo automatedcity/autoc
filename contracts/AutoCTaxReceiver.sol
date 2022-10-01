@@ -46,7 +46,7 @@ contract AutoCTaxReceiver {
     constructor(address token_, address treasuryAddress_, address devAddress_) {
         require(
             token_ != address(0) &&
-            treasuryAddress != address(0) &&
+            treasuryAddress_ != address(0) &&
             devAddress_ != address(0),
             'Zero Address'
         );
